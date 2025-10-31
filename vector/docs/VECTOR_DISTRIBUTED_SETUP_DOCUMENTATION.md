@@ -8,7 +8,7 @@ This comprehensive guide covers setting up Vector.dev on a machine, configuring 
 2. [Installation](#installation)
 3. [Basic Configuration](#basic-configuration)
 4. [vector.toml Structure](#vectortoml-structure)
-5. [Distributed Setup (Vector + Kafka on Separate Machines)](#distributed-setup)
+5. [Distributed Setup (Vector + Kafka on Separate Machines)](#distributed-setup-vector--kafka-on-separate-machines)
 6. [Production Considerations](#production-considerations)
 7. [Troubleshooting](#troubleshooting)
 
