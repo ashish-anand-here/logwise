@@ -105,17 +105,13 @@ Vector automatically creates topics using the naming convention: `{type}_{env}_{
 
 ### Format
 
-- **`type`**: Type of data (e.g., `application`,`kafka`,`mysql`)
+- **`type`**: Type of data (e.g., `application`,`kafka`,`mysql`,`nginx`)
 - **`env`**: Environment identifier (e.g., `prod`, `staging`, `dev`, `test`)
 - **`service_name`**: Service or application name generating the logs
 
 ### Examples
-
-- `logs_prod_nginx` - nginx logs from production
-- `logs_prod_apache` - apache logs from production
-- `logs_staging_user-service` - user service logs from staging
-- `events_prod_audit-service` - audit events from production
-- `metrics_dev_payment-service` - metrics from payment service in dev
+- `nginx_prod_order-service` - nginx logs from production service order-service
+- `application_prod_order-service` - application logs from production service order-service
 
 ## Message Retention
 
