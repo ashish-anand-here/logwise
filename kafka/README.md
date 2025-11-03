@@ -105,7 +105,7 @@ Vector automatically creates topics using the naming convention: `{type}_{env}_{
 
 ### Format
 
-- **`type`**: Type of data (e.g., `logs`, `events`, `metrics`, `traces`)
+- **`type`**: Type of data (e.g., `application`,`kafka`,`mysql`)
 - **`env`**: Environment identifier (e.g., `prod`, `staging`, `dev`, `test`)
 - **`service_name`**: Service or application name generating the logs
 
