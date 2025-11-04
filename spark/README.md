@@ -11,7 +11,7 @@ This repository contains a Spark application that streams log data from Kafka an
 * S3-compatible storage
 
 ## Setup
-
+ 
 Main Class: ```com.logwise.spark.MainApplication```
 
 Run Tests: ```mvn clean verify```
