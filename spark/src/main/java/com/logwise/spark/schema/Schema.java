@@ -22,15 +22,3 @@ public class Schema {
         .add(Constants.APPLICATION_LOG_COLUMN_STATUS, DataTypes.StringType);
   }
 }
-//
-//string message = 1;
-//map<string, string> ddtags = 2;
-//google.protobuf.Timestamp timestamp = 3;
-//string env = 4;
-//string service_name = 5;
-//string component_name = 6;
-//optional string hostname = 7;
-//optional string ddsource = 8;
-//optional string source_type = 9;
-//optional string status = 10;
-//map<string, string> extra = 11;
