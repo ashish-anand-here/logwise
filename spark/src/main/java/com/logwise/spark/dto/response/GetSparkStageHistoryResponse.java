@@ -6,10 +6,10 @@ import lombok.Data;
 
 @Data
 public class GetSparkStageHistoryResponse {
-    private ResponseData data;
+  private ResponseData data;
 
-    @Data
-    public static class ResponseData {
-        private List<SparkStageHistory> sparkStageHistory;
-    }
+  @Data
+  public static class ResponseData {
+    private List<SparkStageHistory> sparkStageHistory;
+  }
 }

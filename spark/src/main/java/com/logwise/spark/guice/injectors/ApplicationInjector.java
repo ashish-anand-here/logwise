@@ -4,7 +4,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 
-public class  ApplicationInjector {
+public class ApplicationInjector {
   private static ApplicationInjector applicationInjector;
   private Injector injector;
 

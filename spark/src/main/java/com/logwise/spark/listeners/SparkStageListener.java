@@ -1,11 +1,11 @@
 package com.logwise.spark.listeners;
 
+import com.google.inject.Inject;
 import com.logwise.spark.constants.Constants;
 import com.logwise.spark.dto.entity.SparkStageHistory;
 import com.logwise.spark.jobs.impl.PushLogsToS3SparkJob;
 import com.logwise.spark.services.SparkStageHistoryService;
 import com.logwise.spark.singleton.CurrentSparkSession;
-import com.google.inject.Inject;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;

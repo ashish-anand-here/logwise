@@ -1,9 +1,9 @@
 package com.logwise.spark.jobs.impl;
 
+import com.google.inject.Inject;
 import com.logwise.spark.constants.JobName;
 import com.logwise.spark.constants.StreamName;
 import com.logwise.spark.stream.StreamFactory;
-import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

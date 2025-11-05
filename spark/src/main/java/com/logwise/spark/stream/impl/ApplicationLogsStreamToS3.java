@@ -36,7 +36,8 @@ public class ApplicationLogsStreamToS3 extends AbstractApplicationLogsStream {
       SparkMasterService sparkMasterService,
       KafkaManagerService kafkaManagerService,
       SparkStageHistoryService sparkStageHistoryService) {
-      super(config, kafkaService, sparkMasterService, kafkaManagerService, sparkStageHistoryService);  }
+    super(config, kafkaService, sparkMasterService, kafkaManagerService, sparkStageHistoryService);
+  }
 
   private StreamingQuery pushApplicationLogsToS3(Dataset<Row> flattenedDataFrame) {
     log.info("Starting To Push Application Logs to S3...");

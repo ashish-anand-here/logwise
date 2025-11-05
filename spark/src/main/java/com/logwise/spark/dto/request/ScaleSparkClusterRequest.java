@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class ScaleSparkClusterRequest {
-    private Boolean enableUpScale;
-    private Boolean enableDownScale;
-    private SparkStageHistory sparkStageHistory;
+  private Boolean enableUpScale;
+  private Boolean enableDownScale;
+  private SparkStageHistory sparkStageHistory;
 }
