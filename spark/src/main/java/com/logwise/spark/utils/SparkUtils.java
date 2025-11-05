@@ -1,10 +1,10 @@
 package com.logwise.spark.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logwise.spark.dto.entity.KafkaReadStreamOptions;
 import com.logwise.spark.guice.injectors.ApplicationInjector;
 import com.logwise.spark.listeners.SparkStageListener;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;

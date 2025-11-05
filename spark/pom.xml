@@ -19,7 +19,7 @@
         <spark.version>3.1.2</spark.version>
         <scala.version>2.12.10</scala.version>
         <hadoop.version>3.1.2</hadoop.version>
-        <lombok.version>1.18.12</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
         <feign.version>10.7.0</feign.version>
         <jackson.core.version>2.12.1</jackson.core.version>
         <google.inject.guice.version>4.2.2</google.inject.guice.version>
@@ -38,9 +38,10 @@
         <!-- Plugin Versions -->
 
         <!--- Main -->
-        <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
         <maven.shade.plugin.version>3.5.1</maven.shade.plugin.version>
         <maven.jar.plugin.version>2.4</maven.jar.plugin.version>
+        <google-java-format.version>1.27.0</google-java-format.version>
 
         <!-- Test -->
         <maven.surefire.plugin.version>3.0.0-M5</maven.surefire.plugin.version>
@@ -264,6 +265,13 @@
                 <configuration>
                     <source>8</source>
                     <target>8</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
                 <executions>
                     <execution>
@@ -452,6 +460,15 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.spotify.fmt</groupId>
+                <artifactId>fmt-maven-plugin</artifactId>
+                <version>2.21.1</version>
+                <configuration>
+                    <googleJavaFormatVersion>${google-java-format.version}</googleJavaFormatVersion>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -8,38 +8,38 @@ import java.util.Map;
 import lombok.SneakyThrows;
 
 public class KafkaAssignOption {
-    private Map<String, List<Integer>> assign;
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+  private Map<String, List<Integer>> assign;
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public KafkaAssignOption() {
-        this.assign = new HashMap<>();
-    }
+  public KafkaAssignOption() {
+    this.assign = new HashMap<>();
+  }
 
-    public Map<String, List<Integer>> getAssign() {
-        return assign;
-    }
+  public Map<String, List<Integer>> getAssign() {
+    return assign;
+  }
 
-    public void addTopic(String topicName, List<Integer> partitions) {
-        if (topicName == null || topicName.isEmpty()) {
-            throw new IllegalArgumentException("Topic name cannot be null or empty");
-        }
-        this.assign.put(topicName, (partitions != null) ? partitions : new ArrayList<>());
+  public void addTopic(String topicName, List<Integer> partitions) {
+    if (topicName == null || topicName.isEmpty()) {
+      throw new IllegalArgumentException("Topic name cannot be null or empty");
     }
+    this.assign.put(topicName, (partitions != null) ? partitions : new ArrayList<>());
+  }
 
-    public void addPartition(String topicName, Integer partition) {
-        if (topicName == null || topicName.isEmpty()) {
-            throw new IllegalArgumentException("Topic name cannot be null or empty");
-        }
-        this.assign.computeIfAbsent(topicName, k -> new ArrayList<>()).add(partition);
+  public void addPartition(String topicName, Integer partition) {
+    if (topicName == null || topicName.isEmpty()) {
+      throw new IllegalArgumentException("Topic name cannot be null or empty");
     }
+    this.assign.computeIfAbsent(topicName, k -> new ArrayList<>()).add(partition);
+  }
 
-    @SneakyThrows
-    public String toJson() {
-        return objectMapper.writeValueAsString(this.assign);
-    }
+  @SneakyThrows
+  public String toJson() {
+    return objectMapper.writeValueAsString(this.assign);
+  }
 
-    @Override
-    public String toString() {
-        return "KafkaAssignOption{" + "assign=" + assign + '}';
-    }
+  @Override
+  public String toString() {
+    return "KafkaAssignOption{" + "assign=" + assign + '}';
+  }
 }

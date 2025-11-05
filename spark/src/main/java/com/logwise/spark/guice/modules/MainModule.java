@@ -1,8 +1,8 @@
 package com.logwise.spark.guice.modules;
 
+import com.google.inject.AbstractModule;
 import com.logwise.spark.clients.*;
 import com.logwise.spark.clients.impl.FeignClientImpl;
-import com.google.inject.AbstractModule;
 import com.typesafe.config.Config;
 import lombok.RequiredArgsConstructor;
 

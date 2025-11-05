@@ -1,7 +1,7 @@
 package com.logwise.spark.services;
 
-import com.logwise.spark.clients.SparkMasterClient;
 import com.google.inject.Inject;
+import com.logwise.spark.clients.SparkMasterClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
