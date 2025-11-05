@@ -1,8 +1,20 @@
+---
+title: Apache Spark
+---
+
 # Apache Spark
 
-Apache Spark is the **log processing engine** in the LogWise system. It consumes logs from Kafka, transforms them as needed, and writes them to Amazon S3.
+Apache Spark is the **log processing engine** in the LogWise system. It consumes logs from Kafka, transforms them as needed, and writes them to Amazon S3 in partitioned format.
 
-## Architecture
+## Overview
+
+Spark handles continuous log processing from Kafka, transforms and enriches log data, and writes it to S3 in a partitioned structure optimized for querying with Athena.
+
+## Architecture in LogWise
+
+```
+Kafka Topics → Spark Jobs → S3 (Parquet, Partitioned)
+```
 
 Spark handles:
 - **Ingestion**: Reads logs from Kafka topics in near real-time
@@ -11,76 +23,50 @@ Spark handles:
 
 ## Key Features
 
-### Real-Time Processing
-- Consumes logs from Kafka topics continuously
-- Supports micro-batch and streaming modes
-- Enables near real-time analytics
+- **Real-time processing** - Consumes logs from Kafka topics continuously in micro-batch and streaming modes
+- **Partitioned storage** - Writes logs to S3 in hierarchical partition format
+- **Fault tolerance** - Checkpointing ensures no data loss with exactly-once processing
+- **Automatic scaling** - Adjusts worker count based on historical stage metrics via Orchestrator Service
 
+## Partitioned Storage in S3
 
-### Partitioned Storage in S3
-- Writes logs in partitioned directories for efficient query and retrieval
-- Partition format: `/env=<env>/service_name=<service_name>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/minute=<mm>/`
-- This structure allows fast filtering based on environment, service, or time ranges.
+Spark writes logs in partitioned directories for efficient query and retrieval. Partition format:
+```
+/env=<env>/service_name=<service_name>/year=<YYYY>/month=<MM>/day=<DD>/hour=<HH>/minute=<mm>/
+```
 
-### Fault Tolerance
-- Checkpointing ensures no data loss on failures
-- Kafka offsets tracked for `exactly-once` processing
-- Can recover from Spark job failures automatically
-### Autoscaling Logic
+This structure allows fast filtering based on environment, service, or time ranges when querying with Athena.
 
-Spark in LogWise automatically adjusts worker count based on historical stage metrics to handle variable log volumes efficiently.
+## Autoscaling Logic
 
-#### How It Works
+Spark automatically adjusts worker count based on historical stage metrics:
 
-1. **Stage History Collection**
-    - After each job, metrics for completed stages are collected (`SparkStageHistory`):
-        - `inputRecords` — number of records processed
-        - `outputBytes` — size of output data
-        - `coresUsed` — CPU cores utilized
-        - Submission & completion timestamps
+1. **Stage History Collection** - After each job, metrics for completed stages are collected:
+   - `inputRecords` - number of records processed
+   - `outputBytes` - size of output data
+   - `coresUsed` - CPU cores utilized
+   - Submission & completion timestamps
 
-2. **Input Growth Analysis**
-    - The orchestrator inspects the last N stages (configured in  `orchestrator` service).
-    - Determines if input records are **incremental** or consistent across stages.
-    - Computes an **incremental buffer** to anticipate growth in workload.
+2. **Input Growth Analysis** - The orchestrator inspects the last N stages to determine if input records are incremental or consistent across stages, and computes an incremental buffer to anticipate growth
 
-3. **Worker & Core Calculation**
-    - Using tenant configuration (`perCoreLogsProcess`), calculates **expected executor cores**:
-      ```
-      expectedExecutorCores = ceil(maxInputRecordsWithBuffer / perCoreLogsProcess)
-      ```
-    - Converts expected cores to **worker count** while respecting tenant min/max limits.
+3. **Worker Calculation** - Using tenant configuration (`perCoreLogsProcess`), calculates expected executor cores: `expectedExecutorCores = ceil(maxInputRecordsWithBuffer / perCoreLogsProcess)`, then converts to worker count while respecting tenant min/max limits
 
-4. **Scaling Decisions**
-    - **Upscale**: Adds workers if workload exceeds current capacity.
-    - **Downscale**: Removes workers if workload is below thresholds.
-    - Scaling only occurs if configured conditions (`enableUpscale` / `enableDownscale`) are met.
+4. **Scaling Decisions** - Orchestrator decides worker scaling for next job based on metrics. Upscales if workload exceeds capacity, downscales if below thresholds (only if configured conditions are met)
 
-5. **Integration with Orchestrator**
-    - Stage metrics are sent to the **Orchestrator Service** after job completion.
-    - Orchestrator decides worker scaling for the next job.
-    - Ensures Spark adapts dynamically without manual intervention.
+This ensures efficient resource usage and handles variable log volumes without manual intervention.
 
-#### Benefits
+## Kafka Integration
 
-- Efficient resource usage — scale only when needed
-- Handles sudden log spikes gracefully
-- Reduces costs during low-traffic periods
-- Maintains high throughput and performance
+- Consumes logs from Kafka topics created by Vector
+- Supports automatic topic discovery using regular expressions
+- Tracks Kafka offsets for reliable exactly-once processing
 
----
+## Integration with Other Components
 
-### Kafka Integration
+- **Kafka** - Consumes logs from topics
+- **S3** - Writes processed logs in Parquet format with partition structure
+- **Orchestrator Service** - Sends stage metrics and receives scaling decisions
 
-- Spark consumes logs from Kafka topics created by Vector.
-- Supports automatic topic discovery using regular expressions.
-- Tracks Kafka offsets for reliable processing.
+## Requirements and Setup
 
-
-### References
-
-- Spark Structured Streaming: https://spark.apache.org/docs/latest/streaming/index.html
-- Kafka Integration: https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html
-
-
-
+See the Spark setup documentation for installation and configuration.
