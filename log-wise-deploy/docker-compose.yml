@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Log Central local stack: Vector → Kafka (KRaft) → Spark (to S3/Athena),
 # Spring Boot Orchestrator + MySQL, Grafana, and Cron jobs.
 
@@ -16,6 +14,8 @@ volumes:
   grafana_data: {}
   spark_checkpoint: {}
   spark_logs: {}
+  spark_master_logs: {}
+  spark_worker_logs: {}
   db_data: {}
 
 services:
@@ -242,15 +242,18 @@ services:
       - SPARK_MODE=master
       - SPARK_MASTER_OPTS=-Dspark.master.rest.enabled=true
     command: ["bash", "-lc", 
-      "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"]
+      "mkdir -p /opt/spark/logs && /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080"]
     expose:
       - "7077"
       - "8080"
       - "6066"
     ports:
       - "${SPARK_MASTER_UI_PORT:-18080}:8080"
+      - 6066:6066
     volumes:
       - ./d11-log-management-spark/central-log-management-spark-2.0.4-SNAPSHOT.jar:/opt/app/app.jar:ro
+      - ./log4j.properties:/opt/spark/conf/log4j.properties:ro
+      - spark_master_logs:/opt/spark/logs
     networks:
       - lc_net
     depends_on:
@@ -272,14 +275,20 @@ services:
     environment:
       - SPARK_MODE=worker
     command: ["bash", "-lc", 
-      "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081"]
+      "mkdir -p /opt/spark/logs && /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081"]
     networks:
       - lc_net
     volumes:
       - ./d11-log-management-spark/central-log-management-spark-2.0.4-SNAPSHOT.jar:/opt/app/app.jar:ro
+      # - ./spark-kafka-vector:/opt/spark/work-dir
+      - ./log4j.properties:/opt/spark/conf/log4j.properties:ro
+      - spark_worker_logs:/opt/spark/logs
+      # - ./spark-work-dir:/opt/spark/work
     depends_on:
       spark-master:
         condition: service_started
+    ports: 
+      - "8081:8081"
     healthcheck:
       test: ["CMD", "bash", "-lc", "wget -qO- http://localhost:8081 >/dev/null"]
       interval: 10s
@@ -321,14 +330,35 @@ services:
       - HADOOP_AWS_VERSION=${HADOOP_AWS_VERSION}
       - AWS_SDK_VERSION=${AWS_SDK_VERSION}
       - APP_JAR=/opt/app/app.jar
-      - MAIN_CLASS=${MAIN_CLASS}
+      - APP_RESOURCE=file:/opt/app/app.jar
+      - MAIN_CLASS=${MAIN_CLASS:-com.dream11.MainApplication}
+      # REST API submission args - can be overridden via APP_ARGS env var
+      - APP_ARGS=${APP_ARGS:-kafka.cluster.dns=kafka,kafka.cluster.name=central-log-management-v3,kafka.manager.host=http://kafka-manager:9000,kafka.maxRatePerPartition=4000,kafka.startingOffsets=latest,kafka.subscribePattern=logs.*,spark.master.host=http://spark-master:8080}
+      # REST API configuration
+      - SPARK_REST_URL=http://spark-master:6066/v1/submissions/create
+      - CLIENT_SPARK_VERSION=3.1.2
+      - SPARK_APP_NAME=d11-log-management
+      - SPARK_CORES_MAX=1
+      - SPARK_DRIVER_CORES=1
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_CORES=1
+      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_DRIVER_SUPERVISE=true
+      - SPARK_DRIVER_OPTS=-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties
+      - SPARK_EXECUTOR_OPTS=-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties
+      - SPARK_DRIVER_MAX_RESULT_SIZE=1G
+      # Tenant configuration
+      - TENANT_HEADER=X-Tenant-Name
+      - TENANT_VALUE=${TENANT_VALUE:-D11-Prod-AWS}
+      # Auto-submit via REST API on container start
+      - AUTO_SPARK_REST_SUBMIT=true
     volumes:
-      - ./spark/submit.sh:/opt/submit.sh:ro
       - ./spark/rest-submit.sh:/opt/rest-submit.sh:ro
+      - ./spark/entrypoint.sh:/opt/spark-entrypoint.sh:ro
       - ./d11-log-management-spark/central-log-management-spark-2.0.4-SNAPSHOT.jar:/opt/app/app.jar:ro
       - spark_checkpoint:/opt/checkpoints
       - spark_logs:/opt/spark/logs
-    command: ["bash", "-lc", "chmod +x /opt/rest-submit.sh /opt/submit.sh || true; if [ \"${AUTO_SPARK_REST_SUBMIT:-false}\" = \"true\" ]; then bash /opt/rest-submit.sh; elif [ \"${AUTO_SPARK_SUBMIT:-false}\" = \"true\" ]; then bash /opt/submit.sh; else sleep infinity; fi"]
+    entrypoint: ["/bin/bash", "/opt/spark-entrypoint.sh"]
     networks:
       - lc_net
     depends_on:

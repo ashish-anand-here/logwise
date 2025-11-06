@@ -3,7 +3,7 @@ SHELL := /bin/bash
 PROJECT := log-central
 COMPOSE := docker compose
 
-.PHONY: bootstrap up down logs ps topics spark-submit spark-rest-submit init-db teardown
+.PHONY: bootstrap up down logs ps topics spark-submit spark-rest-submit init-db teardown reset-kafka
 
 bootstrap:
 	@chmod +x ./start.sh || true
@@ -42,7 +42,7 @@ spark-rest-submit:
 
 # Build the Java Spark app JAR
 spark-build:
-	cd d11-log-managament-spark && \
+	cd d11-log-management-spark && \
 	mvn -B -T 4 clean package -Dmaven.test.skip -Dmaven.artifact.threads=10 -Paws
 
 # Submit the built JAR to Spark master
@@ -57,5 +57,14 @@ spark-run-jar:
 
 teardown:
 	$(COMPOSE) down -v
+
+# Reset Kafka and ZooKeeper volumes to fix cluster ID mismatch issues
+reset-kafka:
+	@echo "Stopping Kafka and ZooKeeper services..."
+	$(COMPOSE) stop kafka zookeeper || true
+	@echo "Removing Kafka and ZooKeeper containers and volumes..."
+	$(COMPOSE) rm -f -v kafka zookeeper || true
+	docker volume rm log-central_kafka_data log-central_zookeeper_data 2>/dev/null || true
+	@echo "Kafka and ZooKeeper volumes removed. Run 'make up' to start fresh."
 
 
