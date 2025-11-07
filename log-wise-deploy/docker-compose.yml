@@ -17,6 +17,8 @@ volumes:
   spark_master_logs: {}
   spark_worker_logs: {}
   db_data: {}
+  healthcheck_logs: {}
+  otel_storage: {}
 
 services:
   vector:
@@ -37,6 +39,8 @@ services:
 
     expose:
       - "8686" # internal-only Vector API
+      - "4317" # OTLP gRPC
+      - "4318" # OTLP HTTP
     networks:
       - lc_net
     depends_on:
@@ -48,8 +52,6 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
-    mem_limit: 256m
-    cpus: "0.50"
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -71,8 +73,6 @@ services:
       retries: 20
       start_period: 10s
     restart: unless-stopped
-    mem_limit: 512m
-    cpus: "0.50"
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
@@ -88,12 +88,17 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # Enable JMX for Kafka Manager polling
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka
+      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.rmi.port=9999 -Djava.rmi.server.hostname=kafka
     volumes:
       - kafka_data:/var/lib/kafka/data
     expose:
       - "9092"
+      - "9999"  # JMX port for Kafka Manager polling
     networks:
       - lc_net
     depends_on:
@@ -106,35 +111,7 @@ services:
       retries: 20
       start_period: 20s
     restart: unless-stopped
-    mem_limit: 1g
-    cpus: "1.00"
 
-  # mysql:
-  #   image: mysql:8.0
-  #   container_name: lc_mysql
-  #   env_file:
-  #     - .env
-  #   command: >
-  #     --default-authentication-plugin=mysql_native_password
-  #     --character-set-server=utf8mb4
-  #     --collation-server=utf8mb4_0900_ai_ci
-  #   environment:
-  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-myapp}
-  #     MYSQL_USER: ${MYSQL_USER:-myapp}
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-myapp_pass}
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
-  #   ports:
-  #     - "3306:3306"
-  #   networks:
-  #     - lc_net
-  #   volumes:
-  #     - mysql_data:/var/lib/mysql
-  #     - ./db/init:/docker-entrypoint-initdb.d:ro
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root_pass}"]
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 20
 
   db:
     image: mysql:8.0
@@ -162,8 +139,6 @@ services:
       timeout: 3s
       retries: 20
     restart: unless-stopped
-    mem_limit: 768m
-    cpus: "0.75"
     
 
   orchestrator:
@@ -205,8 +180,6 @@ services:
       retries: 20
       start_period: 20s
     restart: unless-stopped
-    mem_limit: 768m
-    cpus: "0.75"
 
   kafka-manager:
     image: hlebalbau/kafka-manager:stable
@@ -232,11 +205,36 @@ services:
       retries: 20
       start_period: 20s
     restart: unless-stopped
-    mem_limit: 256m
-    cpus: "0.50"
+
+  kafka-manager-init:
+    image: alpine:3.20
+    container_name: lc_kafka_manager_init
+    environment:
+      ZK_HOSTS: zookeeper:2181
+      CLUSTER_NAME: logwise
+      KAFKA_MANAGER_HOST: kafka-manager
+      KAFKA_MANAGER_PORT: 9000
+      KAFKA_VERSION: 2.4.0
+      KAFKA_HOST: kafka
+      KAFKA_JMX_PORT: 9999
+    networks:
+      - lc_net
+    depends_on:
+      kafka-manager:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
+    volumes:
+      - ./kafka-manager/init-cluster.sh:/init-cluster.sh:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache curl netcat-openbsd && /init-cluster.sh"]
+    restart: "on-failure"
 
   spark-master:
-    image: apache/spark:latest
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
     container_name: lc_spark_master
     environment:
       - SPARK_MODE=master
@@ -270,12 +268,16 @@ services:
     cpus: "1.00"
 
   spark-worker:
-    image: apache/spark:latest
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
     container_name: lc_spark_worker
     environment:
       - SPARK_MODE=worker
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
     command: ["bash", "-lc", 
-      "mkdir -p /opt/spark/logs && /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081"]
+      "mkdir -p /opt/spark/logs && SPARK_WORKER_OPTS='-Dspark.worker.memory=2048m' /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081 --memory 2048m --cores 2"]
     networks:
       - lc_net
     volumes:
@@ -296,7 +298,7 @@ services:
       retries: 20
       start_period: 10s
     restart: unless-stopped
-    mem_limit: 2g
+    mem_limit: 3g
     cpus: "2.00"
 
   # spark-build:
@@ -311,7 +313,9 @@ services:
   #   restart: "no"
 
   spark-client:
-    image: apache/spark:latest
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
     container_name: lc_spark_client
     env_file:
       - .env
@@ -326,6 +330,7 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
       - SPARK_VERSION_MATCH=${SPARK_VERSION_MATCH}
       - HADOOP_AWS_VERSION=${HADOOP_AWS_VERSION}
       - AWS_SDK_VERSION=${AWS_SDK_VERSION}
@@ -333,16 +338,22 @@ services:
       - APP_RESOURCE=file:/opt/app/app.jar
       - MAIN_CLASS=${MAIN_CLASS:-com.dream11.MainApplication}
       # REST API submission args - can be overridden via APP_ARGS env var
-      - APP_ARGS=${APP_ARGS:-kafka.cluster.dns=kafka,kafka.cluster.name=central-log-management-v3,kafka.manager.host=http://kafka-manager:9000,kafka.maxRatePerPartition=4000,kafka.startingOffsets=latest,kafka.subscribePattern=logs.*,spark.master.host=http://spark-master:8080}
+      # Note: Values with colons (like URLs) must be quoted for HOCON parsing
+      # Format matches the working curl command exactly
+      # Using single quotes in YAML to preserve double quotes in the value
+      # Match the working curl command exactly
+      # Note: kafka.cluster.dns includes port (kafka:9092) as per working curl
+      # Note: kafka.manager.host should be http://kafka-manager:9000 (not 9092)
+      - APP_ARGS=${APP_ARGS:-'kafka.cluster.dns="kafka",kafka.cluster.name=central-log-management-v3,kafka.manager.host="http://kafka-manager:9000",kafka.maxRatePerPartition=4000,kafka.startingOffsets=latest,kafka.subscribePattern="logs.*",spark.master.host="http://spark-master:8080"'}
       # REST API configuration
       - SPARK_REST_URL=http://spark-master:6066/v1/submissions/create
       - CLIENT_SPARK_VERSION=3.1.2
       - SPARK_APP_NAME=d11-log-management
       - SPARK_CORES_MAX=1
       - SPARK_DRIVER_CORES=1
-      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_DRIVER_MEMORY=512m
       - SPARK_EXECUTOR_CORES=1
-      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=512m
       - SPARK_DRIVER_SUPERVISE=true
       - SPARK_DRIVER_OPTS=-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties
       - SPARK_EXECUTOR_OPTS=-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties
@@ -372,6 +383,35 @@ services:
     mem_limit: 1g
     cpus: "1.00"
 
+  healthcheck-dummy:
+    build:
+      context: ./healthcheck-dummy
+      dockerfile: Dockerfile
+    container_name: lc_healthcheck_dummy
+    environment:
+      - SERVICE_NAME=healthcheck-dummy
+      - ENVIRONMENT=local
+      - TYPE=healthcheck
+    volumes:
+      - healthcheck_logs:/var/log/healthcheck
+      - otel_storage:/var/lib/otelcol/storage
+    networks:
+      - lc_net
+    depends_on:
+      vector:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:13133"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   grafana:
     image: grafana/grafana:latest
     container_name: lc_grafana
@@ -395,8 +435,6 @@ services:
       retries: 20
       start_period: 20s
     restart: unless-stopped
-    mem_limit: 512m
-    cpus: "0.50"
 
   scheduler:
     image: alpine:3.20

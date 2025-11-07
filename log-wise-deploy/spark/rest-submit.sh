@@ -31,6 +31,12 @@ APP_ARGS=${APP_ARGS:-}
 TENANT_HEADER=${TENANT_HEADER:-X-Tenant-Name}
 TENANT_VALUE=${TENANT_VALUE:-D11-Prod-AWS}
 
+# AWS credentials for S3 access
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+AWS_REGION=${AWS_REGION:-us-east-1}
+
 SPARK_MASTER_URL=${SPARK_MASTER_URL:-spark://spark-master:7077}
 SPARK_APP_NAME=${SPARK_APP_NAME:-d11-log-management}
 SPARK_CORES_MAX=${SPARK_CORES_MAX:-4}
@@ -51,21 +57,124 @@ if [[ -z "$APP_RESOURCE" || -z "$MAIN_CLASS" ]]; then
 fi
 
 # Build JSON arrays safely
+# Each argument should be valid HOCON format (e.g., key=value or key="value with spaces/colons")
+# Note: We need to split by comma but respect quoted strings
 ARGS_JSON="[]"
 if [[ -n "$APP_ARGS" ]]; then
-  IFS=',' read -ra ARR <<< "$APP_ARGS"
+  # Use a more sophisticated splitting that respects quoted strings
+  # Split by comma, but only when not inside quotes
+  ARR=()
+  CURRENT=""
+  IN_QUOTES=0
+  ESCAPED=0
+  
+  for (( i=0; i<${#APP_ARGS}; i++ )); do
+    char="${APP_ARGS:$i:1}"
+    
+    if [[ $ESCAPED -eq 1 ]]; then
+      CURRENT+="$char"
+      ESCAPED=0
+      continue
+    fi
+    
+    case "$char" in
+      '\\')
+        ESCAPED=1
+        CURRENT+="$char"
+        ;;
+      '"')
+        if [[ $IN_QUOTES -eq 0 ]]; then
+          IN_QUOTES=1
+        else
+          IN_QUOTES=0
+        fi
+        CURRENT+="$char"
+        ;;
+      ',')
+        if [[ $IN_QUOTES -eq 0 ]]; then
+          # Split here
+          CURRENT="${CURRENT## }"
+          CURRENT="${CURRENT%% }"
+          if [[ -n "$CURRENT" ]]; then
+            ARR+=("$CURRENT")
+          fi
+          CURRENT=""
+        else
+          CURRENT+="$char"
+        fi
+        ;;
+      *)
+        CURRENT+="$char"
+        ;;
+    esac
+  done
+  
+  # Add the last argument
+  if [[ -n "$CURRENT" ]]; then
+    CURRENT="${CURRENT## }"
+    CURRENT="${CURRENT%% }"
+    if [[ -n "$CURRENT" ]]; then
+      ARR+=("$CURRENT")
+    fi
+  fi
+  
+  # Build JSON array
   FIRST=1
   ARGS_JSON="["
   for a in "${ARR[@]}"; do
-    a="${a## }"; a="${a%% }"
+    # Escape quotes and backslashes for JSON (but preserve the HOCON structure)
+    a_escaped=$(printf '%s' "$a" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
     if [[ $FIRST -eq 1 ]]; then
-      ARGS_JSON="$ARGS_JSON\"$a\""
+      ARGS_JSON="$ARGS_JSON\"$a_escaped\""
       FIRST=0
     else
-      ARGS_JSON="$ARGS_JSON,\"$a\""
+      ARGS_JSON="$ARGS_JSON,\"$a_escaped\""
     fi
   done
   ARGS_JSON="$ARGS_JSON]"
+fi
+
+# Build environment variables JSON object
+# Escape quotes and backslashes in values for JSON
+escape_json() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g'
+}
+
+ENV_VARS_JSON="\"SPARK_ENV_LOADED\": \"1\""
+ENV_VARS_JSON="${ENV_VARS_JSON}, \"${TENANT_HEADER}\": \"$(escape_json "${TENANT_VALUE}")\""
+
+# Add AWS credentials if provided
+if [[ -n "${AWS_ACCESS_KEY_ID}" ]]; then
+  ENV_VARS_JSON="${ENV_VARS_JSON}, \"AWS_ACCESS_KEY_ID\": \"$(escape_json "${AWS_ACCESS_KEY_ID}")\""
+fi
+if [[ -n "${AWS_SECRET_ACCESS_KEY}" ]]; then
+  ENV_VARS_JSON="${ENV_VARS_JSON}, \"AWS_SECRET_ACCESS_KEY\": \"$(escape_json "${AWS_SECRET_ACCESS_KEY}")\""
+fi
+if [[ -n "${AWS_SESSION_TOKEN}" ]]; then
+  ENV_VARS_JSON="${ENV_VARS_JSON}, \"AWS_SESSION_TOKEN\": \"$(escape_json "${AWS_SESSION_TOKEN}")\""
+fi
+if [[ -n "${AWS_REGION}" ]]; then
+  ENV_VARS_JSON="${ENV_VARS_JSON}, \"AWS_REGION\": \"$(escape_json "${AWS_REGION}")\""
+fi
+
+# Determine credentials provider based on whether session token is present
+# SimpleAWSCredentialsProvider doesn't support session tokens, so use EnvironmentVariableCredentialsProvider when session token is present
+if [[ -n "${AWS_SESSION_TOKEN}" ]]; then
+  S3A_CREDENTIALS_PROVIDER="com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+  # When using EnvironmentVariableCredentialsProvider, don't set access.key and secret.key in properties
+  S3A_PROPERTIES_JSON='"spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+    "spark.hadoop.fs.s3a.path.style.access": "true",
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "'"${S3A_CREDENTIALS_PROVIDER}"'",
+    "spark.hadoop.fs.s3a.endpoint": "s3.'"${AWS_REGION:-us-east-1}"'.amazonaws.com"'
+else
+  S3A_CREDENTIALS_PROVIDER="org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+  # When using SimpleAWSCredentialsProvider, set access.key and secret.key in properties
+  S3A_PROPERTIES_JSON='"spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+    "spark.hadoop.fs.s3a.path.style.access": "true",
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "'"${S3A_CREDENTIALS_PROVIDER}"'",
+    "spark.hadoop.fs.s3a.access.key": "'"$(escape_json "${AWS_ACCESS_KEY_ID:-}")"'",
+    "spark.hadoop.fs.s3a.secret.key": "'"$(escape_json "${AWS_SECRET_ACCESS_KEY:-}")"'",
+    "spark.hadoop.fs.s3a.endpoint": "s3.'"${AWS_REGION:-us-east-1}"'.amazonaws.com"'
 fi
 
 # Build JSON body - use printf instead of heredoc to avoid issues with set -eu
@@ -76,8 +185,7 @@ BODY=$(printf '{
   "clientSparkVersion": "%s",
   "mainClass": "%s",
   "environmentVariables": {
-    "SPARK_ENV_LOADED": "1",
-    "%s": "%s"
+    %s
   },
   "sparkProperties": {
     "spark.app.name": "%s",
@@ -92,15 +200,15 @@ BODY=$(printf '{
     "spark.executor.memory": "%s",
     "spark.jars": "%s",
     "spark.master": "%s",
-    "spark.submit.deployMode": "%s"
+    "spark.submit.deployMode": "%s",
+    %s
   }
 }' \
   "${ARGS_JSON}" \
   "${APP_RESOURCE}" \
   "${CLIENT_SPARK_VERSION}" \
   "${MAIN_CLASS}" \
-  "${TENANT_HEADER}" \
-  "${TENANT_VALUE}" \
+  "${ENV_VARS_JSON}" \
   "${SPARK_APP_NAME}" \
   "${SPARK_CORES_MAX}" \
   "${SPARK_DRIVER_CORES}" \
@@ -113,7 +221,8 @@ BODY=$(printf '{
   "${SPARK_EXECUTOR_MEMORY}" \
   "${SPARK_JARS}" \
   "${SPARK_MASTER_URL}" \
-  "${SPARK_DEPLOY_MODE}")
+  "${SPARK_DEPLOY_MODE}" \
+  "${S3A_PROPERTIES_JSON}")
 
 echo "Submitting via REST to ${SPARK_REST_URL}"
 echo "Request body (first 500 chars): ${BODY:0:500}..." >&2

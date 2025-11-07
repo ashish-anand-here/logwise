@@ -34,7 +34,6 @@ transforms:
       # Handle attributes with fallible assignments and defaults
       .message    = to_string(.attributes.message) ?? "no_message"
       .log_level  = to_string(.attributes.level) ?? "unknown"
-      .timestamp  = to_string(.attributes.time) ?? "unknown"
 
 sinks:
   app-logs-kafka:
