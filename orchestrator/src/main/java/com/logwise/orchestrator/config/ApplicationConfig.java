@@ -55,7 +55,7 @@ public class ApplicationConfig {
 
     @NonFinal @Optional
     Integer maxProducerRatePerPartition =
-            ApplicationConstants.KAFKA_MAX_PRODUCER_RATE_PER_PARTITION;
+        ApplicationConstants.KAFKA_MAX_PRODUCER_RATE_PER_PARTITION;
 
     @NonFinal @Optional Integer kafkaBrokerPort = ApplicationConstants.KAFKA_BROKER_PORT;
   }
@@ -100,5 +100,4 @@ public class ApplicationConfig {
     @NonFinal @NotNull List<String> envs;
     @NonFinal @NotNull Integer retentionDays;
   }
-
 }
