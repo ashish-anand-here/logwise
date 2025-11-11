@@ -7,7 +7,7 @@ on:
       - reopened
       - synchronize
     paths:
-      - 'logwise-orchestrator/**'
+      - 'orchestrator/**'
 
 jobs:
   fmt-check:
