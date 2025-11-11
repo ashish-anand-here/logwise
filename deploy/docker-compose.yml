@@ -161,7 +161,7 @@ services:
 
   spark-master:
     build:
-      context: ./spark
+      context: ../spark
       dockerfile: Dockerfile
     container_name: lc_spark_master
     environment:
@@ -191,7 +191,7 @@ services:
 
   spark-worker:
     build:
-      context: ./spark
+      context: ../spark
       dockerfile: Dockerfile
     container_name: lc_spark_worker
     environment:
@@ -205,7 +205,7 @@ services:
     volumes:
       - ../spark/logwise-spark-2.0.4-SNAPSHOT.jar:/opt/app/app.jar:ro
       # - ./spark-kafka-vector:/opt/spark/work-dir
-      - ./log4j.properties:/opt/spark/conf/log4j.properties:ro
+      - ../spark/log4j.properties:/opt/spark/conf/log4j.properties:ro
       - spark_worker_logs:/opt/spark/logs
       # - ./spark-work-dir:/opt/spark/work
     depends_on:
@@ -225,7 +225,7 @@ services:
 
   spark-client:
     build:
-      context: ./spark
+      context: ../spark
       dockerfile: Dockerfile
     container_name: lc_spark_client
     env_file:
@@ -275,9 +275,9 @@ services:
       # Auto-submit via REST API on container start
       - AUTO_SPARK_REST_SUBMIT=true
     volumes:
-      - ./spark/rest-submit.sh:/opt/rest-submit.sh:ro
-      - ./spark/entrypoint.sh:/opt/spark-entrypoint.sh:ro
-      - ./d11-log-management-spark/central-log-management-spark-2.0.4-SNAPSHOT.jar:/opt/app/app.jar:ro
+      - ../spark/rest-submit.sh:/opt/rest-submit.sh:ro
+      - ../spark/entrypoint.sh:/opt/spark-entrypoint.sh:ro
+      - ../spark/logwise-spark-2.0.4-SNAPSHOT.jar:/opt/app/app.jar:ro
       - spark_checkpoint:/opt/checkpoints
       - spark_logs:/opt/spark/logs
     entrypoint: ["/bin/bash", "/opt/spark-entrypoint.sh"]
