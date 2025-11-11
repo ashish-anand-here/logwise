@@ -55,7 +55,7 @@ cp /root/spark-jars/*.jar $SPARK_HOME/jars/
 
 # Master Setup (Run only on Master node)
 
-## Enable REST API on Spark Master
+### Enable REST API on Spark Master
 
 ### Edit:
 
