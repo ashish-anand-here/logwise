@@ -45,6 +45,12 @@ target/
 *.war
 *.ear
 
+# Specific jar files
+**/logwise-spark*.jar
+**/spark/*.jar
+spark/*.jar
+orchestrator/orchestrator*.jar
+
 # Dependencies
 node_modules/
 vendor/
