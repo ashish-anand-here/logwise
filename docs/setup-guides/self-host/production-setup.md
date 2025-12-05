@@ -4,7 +4,7 @@ title: Production-Ready Self-Hosted Setup
 
 # Production-Ready Self-Hosted Setup Guide
 
-This guide covers production scaling strategies and patterns for LogWise components. For detailed component setup, refer to individual guides:
+This guide covers production scaling strategies and patterns for Logwise components. For detailed component setup, refer to individual guides:
 
 - [Vector Setup](./vector-setup.md) | [Kafka Setup](./kafka-setup.md) | [Spark Setup](./spark-setup.md)
 - [Orchestrator Setup](./orchestrator-service-setup.md) | [Grafana Setup](./grafana-setup.md) | [S3 & Athena Setup](./s3-athena-setup.md)
@@ -46,7 +46,9 @@ Logwise is split into two planes:
 
 3. Spark Master + ASG of Spark Workers – Reads from Kafka, writes Parquet logs to S3.
 
-4. Amazon S3 – Long-term log storage.
+4. Amazon S3 
+   - Long-term log storage.
+   - Retention is enforced via S3 lifecycle policies that are **managed by Orchestrator** based on retention settings stored in the Orchestrator DB or default config for non-prod environments.
 
 5. Glue + Athena – Schema and SQL engine over S3 data.
 
@@ -248,6 +250,16 @@ Even when expected and actual worker counts differ, Orchestrator will **not** ch
 - Clamping to min/max workers results in “no effective change”.
 
 In such cases, the system logs the reason and keeps the worker count as-is.
+
+## S3 Retention Management
+
+In addition to scaling, Orchestrator is responsible for enforcing log retention on S3:
+
+1. **Config Source**: Retention (e.g. retention_days) is stored in the Orchestrator DB per service + environment.
+
+2. **How It Works**: Orchestrator periodically syncs these settings to S3, updating lifecycle rules for the matching prefixes.
+
+3. **Effect**: S3 automatically expires objects older than the configured retention, and any change in DB config is applied without manual cleanup.
 
 ## Monitoring and Alerting for Scaling
 
