@@ -253,7 +253,6 @@ This section explains how Logwise architecture addresses critical non-functional
 
 - **Logging & Debugging**:
   - All components log to standard outputs
-  - Spark logs stored in S3 for historical analysis
   - Orchestrator maintains job history in database
 
 ## 7. Security
@@ -277,40 +276,4 @@ This section explains how Logwise architecture addresses critical non-functional
   - Kafka can be configured with SSL/TLS for encryption in transit
   - Database encryption at rest (RDS)
 
-## 8. Cost Optimization
-
-**Requirement**: System should minimize operational costs while meeting performance requirements.
-
-**How It's Achieved**:
-
-- **Auto-Scaling**: Components scale down during low-traffic periods, reducing costs
-- **Serverless Components**: Lambda and Athena are pay-per-use, eliminating idle costs
-- **Storage Optimization**:
-  - Parquet compression reduces S3 storage costs by 80-90%
-  - Lifecycle policies automatically archive or delete old data
-  - Orchestrator manages retention based on requirements
-
-- **Efficient Processing**: 
-  - Batch processing optimizes resource utilization
-  - Spark processes data in parallel, reducing processing time and costs
-
----
-
-# Deployment Checklist
-
-Before deploying to production, ensure:
-
-- [ ] All components configured with appropriate instance sizes
-- [ ] Auto Scaling Groups configured with min/max instances
-- [ ] Load balancers configured with health checks
-- [ ] Databases configured with Multi-AZ deployment
-- [ ] Kafka replication factor set to 3 (or appropriate for your needs)
-- [ ] S3 bucket created with appropriate lifecycle policies
-- [ ] IAM roles and policies configured for all AWS services
-- [ ] Security groups configured to restrict access
-- [ ] Monitoring and alerting configured
-- [ ] Backup and disaster recovery procedures documented
-- [ ] Retention policies configured in Orchestrator DB
-- [ ] Grafana datasources configured (Athena, Orchestrator DB)
-- [ ] Event scheduler configured to trigger Orchestrator
 
