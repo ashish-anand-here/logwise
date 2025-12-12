@@ -67,10 +67,8 @@ public class ConfluentKafkaClientTest extends BaseTest {
     assertNotNull(config);
     assertEquals(config.get("security.protocol"), "SASL_SSL");
     assertEquals(config.get(SaslConfigs.SASL_MECHANISM), "PLAIN");
-    assertTrue(
-        config.get(SaslConfigs.SASL_JAAS_CONFIG).toString().contains("test-api-key"));
-    assertTrue(
-        config.get(SaslConfigs.SASL_JAAS_CONFIG).toString().contains("test-api-secret"));
+    assertTrue(config.get(SaslConfigs.SASL_JAAS_CONFIG).toString().contains("test-api-key"));
+    assertTrue(config.get(SaslConfigs.SASL_JAAS_CONFIG).toString().contains("test-api-secret"));
   }
 
   @Test
@@ -99,4 +97,3 @@ public class ConfluentKafkaClientTest extends BaseTest {
     assertTrue(config.containsKey(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG));
   }
 }
-

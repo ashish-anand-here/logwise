@@ -60,62 +60,65 @@ public class MskKafkaClient extends AbstractKafkaClient {
       return fetchBootstrapBrokersFromMsk();
     }
 
-    return Single.error(new IllegalStateException(
-        "MSK bootstrap servers must be provided via kafkaBrokersHost or mskClusterArn"));
+    return Single.error(
+        new IllegalStateException(
+            "MSK bootstrap servers must be provided via kafkaBrokersHost or mskClusterArn"));
   }
 
   private Single<String> fetchBootstrapBrokersFromMsk() {
     return ApplicationUtils.executeBlockingCallable(
-        () -> {
-          try (KafkaClient mskClient =
-              KafkaClient.builder()
-                  .region(awsRegion)
-                  .credentialsProvider(DefaultCredentialsProvider.create())
-                  .build()) {
+            () -> {
+              try (KafkaClient mskClient =
+                  KafkaClient.builder()
+                      .region(awsRegion)
+                      .credentialsProvider(DefaultCredentialsProvider.create())
+                      .build()) {
 
-            GetBootstrapBrokersRequest request =
-                GetBootstrapBrokersRequest.builder().clusterArn(mskClusterArn).build();
+                GetBootstrapBrokersRequest request =
+                    GetBootstrapBrokersRequest.builder().clusterArn(mskClusterArn).build();
 
-            // Try IAM auth first, fallback to plaintext if needed
-            String bootstrapBrokers =
-                mskClient.getBootstrapBrokers(request).bootstrapBrokerStringSaslIam();
+                // Try IAM auth first, fallback to plaintext if needed
+                String bootstrapBrokers =
+                    mskClient.getBootstrapBrokers(request).bootstrapBrokerStringSaslIam();
 
-            if (bootstrapBrokers == null || bootstrapBrokers.isEmpty()) {
-              bootstrapBrokers = mskClient.getBootstrapBrokers(request).bootstrapBrokerString();
-            }
+                if (bootstrapBrokers == null || bootstrapBrokers.isEmpty()) {
+                  bootstrapBrokers = mskClient.getBootstrapBrokers(request).bootstrapBrokerString();
+                }
 
-            log.info("Fetched MSK bootstrap brokers: {}", bootstrapBrokers);
-            return bootstrapBrokers;
-          } catch (Exception e) {
-            log.error("Error fetching MSK bootstrap brokers", e);
-            throw new RuntimeException("Failed to fetch MSK bootstrap brokers", e);
-          }
-        })
+                log.info("Fetched MSK bootstrap brokers: {}", bootstrapBrokers);
+                return bootstrapBrokers;
+              } catch (Exception e) {
+                log.error("Error fetching MSK bootstrap brokers", e);
+                throw new RuntimeException("Failed to fetch MSK bootstrap brokers", e);
+              }
+            })
         .toSingle();
   }
 
   @Override
   public Single<Map<String, Object>> buildAdminClientConfig() {
     log.info("Building AdminClient config for MSK with IAM authentication");
-    
+
     return buildBootstrapServers()
-        .map(bootstrapServers -> {
-          Map<String, Object> config = new HashMap<>();
-          config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-          config.put(
-              AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, ApplicationConstants.KAFKA_REQUEST_TIMEOUT_MS);
+        .map(
+            bootstrapServers -> {
+              Map<String, Object> config = new HashMap<>();
+              config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+              config.put(
+                  AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG,
+                  ApplicationConstants.KAFKA_REQUEST_TIMEOUT_MS);
 
-          // MSK IAM Authentication
-          config.put("security.protocol", "SASL_SSL");
-          config.put(SaslConfigs.SASL_MECHANISM, "AWS_MSK_IAM");
-          config.put(
-              SaslConfigs.SASL_CLIENT_CALLBACK_HANDLER_CLASS,
-              "software.amazon.msk.auth.iam.IAMClientCallbackHandler");
+              // MSK IAM Authentication
+              config.put("security.protocol", "SASL_SSL");
+              config.put(SaslConfigs.SASL_MECHANISM, "AWS_MSK_IAM");
+              config.put(
+                  SaslConfigs.SASL_CLIENT_CALLBACK_HANDLER_CLASS,
+                  "software.amazon.msk.auth.iam.IAMClientCallbackHandler");
 
-          // SSL configuration
-          config.put("ssl.endpoint.identification.algorithm", "https");
+              // SSL configuration
+              config.put("ssl.endpoint.identification.algorithm", "https");
 
-          return config;
-        });
+              return config;
+            });
   }
 }

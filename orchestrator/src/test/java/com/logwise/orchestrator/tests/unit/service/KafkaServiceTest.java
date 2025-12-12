@@ -103,8 +103,7 @@ public class KafkaServiceTest extends BaseTest {
       when(mockKafkaClient.getPartitionMetrics(anyList())).thenReturn(Single.just(metricsMap));
       when(mockKafkaClient.getEndOffsets(anyList())).thenReturn(Single.just(endOffsets));
       when(mockKafkaClient.calculateLag(any(), any())).thenReturn(Single.just(lagMap));
-      when(mockKafkaClient.increasePartitions(anyMap()))
-          .thenReturn(Completable.complete());
+      when(mockKafkaClient.increasePartitions(anyMap())).thenReturn(Completable.complete());
 
       SparkCheckpointOffsets checkpointOffsetsObj =
           SparkCheckpointOffsets.builder()
@@ -317,4 +316,3 @@ public class KafkaServiceTest extends BaseTest {
     }
   }
 }
-

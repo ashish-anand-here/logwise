@@ -9,11 +9,9 @@ import com.logwise.orchestrator.config.ApplicationConfig;
 import com.logwise.orchestrator.constant.ApplicationConstants;
 import com.logwise.orchestrator.enums.KafkaType;
 import com.logwise.orchestrator.setup.BaseTest;
-import com.logwise.orchestrator.testconfig.ApplicationTestConfig;
 import com.logwise.orchestrator.util.ApplicationUtils;
 import io.reactivex.Single;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -47,8 +45,7 @@ public class Ec2KafkaClientTest extends BaseTest {
 
   @Test
   public void testBuildBootstrapServers_WithValidHostname_ResolvesToIPs() {
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1", "192.168.1.2");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses("kafka.example.com"))
@@ -65,8 +62,7 @@ public class Ec2KafkaClientTest extends BaseTest {
   @Test
   public void testBuildBootstrapServers_WithCustomPort_UsesCustomPort() {
     kafkaConfig.setKafkaBrokerPort(9093);
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses("kafka.example.com"))
@@ -81,8 +77,7 @@ public class Ec2KafkaClientTest extends BaseTest {
   @Test
   public void testBuildBootstrapServers_WithNullPort_UsesDefaultPort() {
     kafkaConfig.setKafkaBrokerPort(null);
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses("kafka.example.com"))
@@ -96,8 +91,7 @@ public class Ec2KafkaClientTest extends BaseTest {
 
   @Test
   public void testBuildAdminClientConfig_WithBasicConfig_ReturnsCorrectConfig() {
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses(anyString()))
@@ -118,8 +112,7 @@ public class Ec2KafkaClientTest extends BaseTest {
   public void testBuildAdminClientConfig_WithSSL_IncludesSSLConfig() {
     kafkaConfig.setSslTruststoreLocation("/path/to/truststore.jks");
     kafkaConfig.setSslTruststorePassword("password");
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses(anyString()))
@@ -138,8 +131,7 @@ public class Ec2KafkaClientTest extends BaseTest {
   public void testBuildAdminClientConfig_WithSSLButNoPassword_IncludesSSLConfigWithoutPassword() {
     kafkaConfig.setSslTruststoreLocation("/path/to/truststore.jks");
     kafkaConfig.setSslTruststorePassword(null);
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses(anyString()))
@@ -156,8 +148,7 @@ public class Ec2KafkaClientTest extends BaseTest {
 
   @Test
   public void testClose_ClosesAdminClient() {
-    try (MockedStatic<ApplicationUtils> mockedUtils =
-        Mockito.mockStatic(ApplicationUtils.class)) {
+    try (MockedStatic<ApplicationUtils> mockedUtils = Mockito.mockStatic(ApplicationUtils.class)) {
       List<String> mockIPs = Arrays.asList("192.168.1.1");
       mockedUtils
           .when(() -> ApplicationUtils.getIpAddresses(anyString()))
@@ -173,4 +164,3 @@ public class Ec2KafkaClientTest extends BaseTest {
     }
   }
 }
-

@@ -7,11 +7,8 @@ import com.logwise.orchestrator.config.ApplicationConfig;
 import com.logwise.orchestrator.dto.kafka.ScalingDecision;
 import com.logwise.orchestrator.dto.kafka.TopicPartitionMetrics;
 import com.logwise.orchestrator.enums.KafkaType;
-import com.logwise.orchestrator.enums.Tenant;
 import com.logwise.orchestrator.service.KafkaScalingService;
-import com.logwise.orchestrator.service.SparkCheckpointService;
 import com.logwise.orchestrator.setup.BaseTest;
-import com.logwise.orchestrator.testconfig.ApplicationTestConfig;
 import io.reactivex.Single;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -43,8 +40,7 @@ public class KafkaScalingIntegrationTest extends BaseTest {
   @BeforeClass
   public static void setUpKafka() {
     kafka =
-        new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"))
-            .withReuse(true);
+        new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0")).withReuse(true);
     kafka.start();
   }
 
@@ -54,8 +50,7 @@ public class KafkaScalingIntegrationTest extends BaseTest {
     kafkaConfig = new ApplicationConfig.KafkaConfig();
     kafkaConfig.setKafkaType(KafkaType.EC2);
     kafkaConfig.setKafkaBrokersHost(kafka.getBootstrapServers().split(":")[0]);
-    kafkaConfig.setKafkaBrokerPort(
-        Integer.parseInt(kafka.getBootstrapServers().split(":")[1]));
+    kafkaConfig.setKafkaBrokerPort(Integer.parseInt(kafka.getBootstrapServers().split(":")[1]));
     kafkaConfig.setMaxLagPerPartition(50_000L);
     kafkaConfig.setDefaultPartitions(3);
 
@@ -186,8 +181,7 @@ public class KafkaScalingIntegrationTest extends BaseTest {
 
     if (!decisions.isEmpty()) {
       ScalingDecision decision = decisions.get(0);
-      Map<String, Integer> scalingMap =
-          Map.of(decision.getTopic(), decision.getNewPartitions());
+      Map<String, Integer> scalingMap = Map.of(decision.getTopic(), decision.getNewPartitions());
 
       // Scale partitions
       ec2KafkaClient.increasePartitions(scalingMap).blockingAwait();
@@ -220,4 +214,3 @@ public class KafkaScalingIntegrationTest extends BaseTest {
     }
   }
 }
-

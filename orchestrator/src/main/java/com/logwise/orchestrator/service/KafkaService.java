@@ -17,8 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
 
 /**
- * Service for scaling Kafka partitions based on metrics and Spark checkpoint
- * lag. Orchestrates the
+ * Service for scaling Kafka partitions based on metrics and Spark checkpoint lag. Orchestrates the
  * scaling flow: get metrics, calculate lag, make decisions, scale partitions.
  */
 @Slf4j
@@ -43,7 +42,8 @@ public class KafkaService {
       KafkaConfig kafkaConfig = tenantConfig.getKafka();
 
       // Check feature flag
-      if (kafkaConfig.getEnablePartitionScaling() == null || !kafkaConfig.getEnablePartitionScaling()) {
+      if (kafkaConfig.getEnablePartitionScaling() == null
+          || !kafkaConfig.getEnablePartitionScaling()) {
         log.info("Partition scaling is disabled for tenant: {}", tenant);
         return Single.just(Collections.emptyList());
       }
@@ -114,8 +114,9 @@ public class KafkaService {
                                   // 4. Get end offsets from Kafka
                                   List<TopicPartition> allPartitions = new ArrayList<>();
                                   for (TopicPartitionMetrics metrics : metricsMap.values()) {
-                                    for (int partitionId = 0; partitionId < metrics
-                                        .getPartitionCount(); partitionId++) {
+                                    for (int partitionId = 0;
+                                        partitionId < metrics.getPartitionCount();
+                                        partitionId++) {
                                       allPartitions.add(
                                           new TopicPartition(metrics.getTopic(), partitionId));
                                     }
@@ -129,10 +130,9 @@ public class KafkaService {
                                             Single<Map<TopicPartition, Long>> lagMapSingle;
                                             if (checkpointOffsets.isAvailable()
                                                 && !checkpointOffsets.getOffsets().isEmpty()) {
-                                              lagMapSingle = kafkaClient
-                                                  .calculateLag(
-                                                      endOffsets,
-                                                      checkpointOffsets.getOffsets());
+                                              lagMapSingle =
+                                                  kafkaClient.calculateLag(
+                                                      endOffsets, checkpointOffsets.getOffsets());
                                             } else {
                                               log.warn(
                                                   "Spark checkpoint offsets not available, using zero lag");
@@ -146,12 +146,14 @@ public class KafkaService {
                                             return lagMapSingle.flatMap(
                                                 lagMap -> {
                                                   // 6. Identify topics needing scaling
-                                                  List<ScalingDecision> scalingDecisions = kafkaScalingService
-                                                      .identifyTopicsNeedingScaling(
-                                                          metricsMap, lagMap, kafkaConfig);
+                                                  List<ScalingDecision> scalingDecisions =
+                                                      kafkaScalingService
+                                                          .identifyTopicsNeedingScaling(
+                                                              metricsMap, lagMap, kafkaConfig);
 
                                                   if (scalingDecisions.isEmpty()) {
-                                                    long duration = System.currentTimeMillis() - startTime;
+                                                    long duration =
+                                                        System.currentTimeMillis() - startTime;
                                                     log.info(
                                                         "No topics need scaling for tenant: {} (checked in {}ms)",
                                                         tenant,
@@ -165,33 +167,41 @@ public class KafkaService {
                                                       tenant,
                                                       scalingDecisions.stream()
                                                           .map(
-                                                              d -> d.getTopic()
-                                                                  + "("
-                                                                  + d.getCurrentPartitions()
-                                                                  + "->"
-                                                                  + d.getNewPartitions()
-                                                                  + ")")
+                                                              d ->
+                                                                  d.getTopic()
+                                                                      + "("
+                                                                      + d.getCurrentPartitions()
+                                                                      + "->"
+                                                                      + d.getNewPartitions()
+                                                                      + ")")
                                                           .collect(
-                                                              java.util.stream.Collectors.joining(", ")));
+                                                              java.util.stream.Collectors.joining(
+                                                                  ", ")));
 
                                                   // 7. Increase partitions
-                                                  Map<String, Integer> scalingMap = scalingDecisions.stream()
-                                                      .collect(
-                                                          Collectors.toMap(
-                                                              ScalingDecision::getTopic,
-                                                              ScalingDecision::getNewPartitions));
+                                                  Map<String, Integer> scalingMap =
+                                                      scalingDecisions.stream()
+                                                          .collect(
+                                                              Collectors.toMap(
+                                                                  ScalingDecision::getTopic,
+                                                                  ScalingDecision
+                                                                      ::getNewPartitions));
 
                                                   return kafkaClient
                                                       .increasePartitions(scalingMap)
                                                       .doOnComplete(
                                                           () -> {
-                                                            long duration = System.currentTimeMillis() - startTime;
-                                                            int totalPartitionsAdded = scalingDecisions.stream()
-                                                                .mapToInt(
-                                                                    d -> d.getNewPartitions()
-                                                                        - d
-                                                                            .getCurrentPartitions())
-                                                                .sum();
+                                                            long duration =
+                                                                System.currentTimeMillis()
+                                                                    - startTime;
+                                                            int totalPartitionsAdded =
+                                                                scalingDecisions.stream()
+                                                                    .mapToInt(
+                                                                        d ->
+                                                                            d.getNewPartitions()
+                                                                                - d
+                                                                                    .getCurrentPartitions())
+                                                                    .sum();
 
                                                             log.info(
                                                                 "Successfully scaled {} topics for tenant: {} in {}ms. Total partitions added: {}",
@@ -200,7 +210,8 @@ public class KafkaService {
                                                                 duration,
                                                                 totalPartitionsAdded);
 
-                                                            for (ScalingDecision decision : scalingDecisions) {
+                                                            for (ScalingDecision decision :
+                                                                scalingDecisions) {
                                                               log.info(
                                                                   "Scaled topic {} from {} to {} partitions (factors: {}, reason: {})",
                                                                   decision.getTopic(),
@@ -212,7 +223,9 @@ public class KafkaService {
                                                           })
                                                       .doOnError(
                                                           th -> {
-                                                            long duration = System.currentTimeMillis() - startTime;
+                                                            long duration =
+                                                                System.currentTimeMillis()
+                                                                    - startTime;
                                                             log.error(
                                                                 "Error increasing partitions for tenant: {} after {}ms",
                                                                 tenant,

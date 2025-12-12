@@ -54,13 +54,14 @@ public abstract class AbstractKafkaClient implements KafkaClient {
     if (adminClient != null) {
       return Single.just(adminClient);
     }
-    
+
     return buildAdminClientConfig()
-        .map(config -> {
-          adminClient = AdminClient.create(config);
-          log.info("Created AdminClient for Kafka type: {}", getKafkaType());
-          return adminClient;
-        });
+        .map(
+            config -> {
+              adminClient = AdminClient.create(config);
+              log.info("Created AdminClient for Kafka type: {}", getKafkaType());
+              return adminClient;
+            });
   }
 
   @Override
@@ -97,17 +98,14 @@ public abstract class AbstractKafkaClient implements KafkaClient {
               try {
                 // Get topic descriptions
                 DescribeTopicsResult topicsResult = adminClient.describeTopics(topics);
-                Map<String, TopicDescription> topicDescriptions =
-                    topicsResult.all().get();
+                Map<String, TopicDescription> topicDescriptions = topicsResult.all().get();
 
                 // Get all partitions
                 List<TopicPartition> allPartitions = new ArrayList<>();
                 for (String topic : topics) {
-                  TopicDescription desc =
-                      topicDescriptions.get(topic);
+                  TopicDescription desc = topicDescriptions.get(topic);
                   if (desc != null) {
-                    for (TopicPartitionInfo partitionInfo :
-                        desc.partitions()) {
+                    for (TopicPartitionInfo partitionInfo : desc.partitions()) {
                       allPartitions.add(new TopicPartition(topic, partitionInfo.partition()));
                     }
                   }
@@ -120,16 +118,14 @@ public abstract class AbstractKafkaClient implements KafkaClient {
                           Map<String, TopicPartitionMetrics> metricsMap = new HashMap<>();
 
                           for (String topic : topics) {
-                            TopicDescription desc =
-                                topicDescriptions.get(topic);
+                            TopicDescription desc = topicDescriptions.get(topic);
                             if (desc == null) continue;
 
                             int partitionCount = desc.partitions().size();
                             Map<Integer, Long> partitionOffsets = new HashMap<>();
                             long totalMessages = 0;
 
-                            for (TopicPartitionInfo partitionInfo :
-                                desc.partitions()) {
+                            for (TopicPartitionInfo partitionInfo : desc.partitions()) {
                               int partitionId = partitionInfo.partition();
                               TopicPartition tp = new TopicPartition(topic, partitionId);
                               Long offset = endOffsets.get(tp);
@@ -298,16 +294,13 @@ public abstract class AbstractKafkaClient implements KafkaClient {
         .flatMap(
             adminClient -> {
               try {
-                Node controllerNode =
-                    adminClient.describeCluster().controller().get();
+                Node controllerNode = adminClient.describeCluster().controller().get();
                 ConfigResource brokerResource =
                     new ConfigResource(ConfigResource.Type.BROKER, controllerNode.idString());
                 DescribeConfigsResult configsResult =
                     adminClient.describeConfigs(Collections.singleton(brokerResource));
-                Config configs =
-                    configsResult.all().get().get(brokerResource);
-                ConfigEntry numPartitionsEntry =
-                    configs.get("num.partitions");
+                Config configs = configsResult.all().get().get(brokerResource);
+                ConfigEntry numPartitionsEntry = configs.get("num.partitions");
 
                 if (numPartitionsEntry != null && numPartitionsEntry.value() != null) {
                   return Single.just(Integer.valueOf(numPartitionsEntry.value()));
@@ -327,8 +320,7 @@ public abstract class AbstractKafkaClient implements KafkaClient {
             adminClient -> {
               try {
                 String clusterId = adminClient.describeCluster().clusterId().get();
-                Collection<Node> nodes =
-                    adminClient.describeCluster().nodes().get();
+                Collection<Node> nodes = adminClient.describeCluster().nodes().get();
 
                 List<ClusterInfo.BrokerInfo> brokers =
                     nodes.stream()

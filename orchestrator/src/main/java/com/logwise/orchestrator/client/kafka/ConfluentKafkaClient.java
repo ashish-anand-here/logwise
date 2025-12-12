@@ -14,8 +14,7 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 
 /**
- * Kafka client implementation for Confluent Cloud/Platform. Uses API key/secret
- * for authentication.
+ * Kafka client implementation for Confluent Cloud/Platform. Uses API key/secret for authentication.
  */
 @Slf4j
 public class ConfluentKafkaClient extends AbstractKafkaClient {
@@ -48,8 +47,9 @@ public class ConfluentKafkaClient extends AbstractKafkaClient {
     // Confluent provides bootstrap servers directly
     String bootstrapServers = kafkaConfig.getKafkaBrokersHost();
     if (bootstrapServers == null || bootstrapServers.isEmpty()) {
-      return Single.error(new IllegalStateException(
-          "Confluent bootstrap servers must be provided via kafkaBrokersHost"));
+      return Single.error(
+          new IllegalStateException(
+              "Confluent bootstrap servers must be provided via kafkaBrokersHost"));
     }
     log.info("Using Confluent bootstrap servers: {}", bootstrapServers);
     return Single.just(bootstrapServers);
@@ -58,28 +58,31 @@ public class ConfluentKafkaClient extends AbstractKafkaClient {
   @Override
   public Single<Map<String, Object>> buildAdminClientConfig() {
     log.info("Building AdminClient config for Confluent with API key authentication");
-    
+
     return buildBootstrapServers()
-        .map(bootstrapServers -> {
-          Map<String, Object> config = new HashMap<>();
-          config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-          config.put(
-              AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, ApplicationConstants.KAFKA_REQUEST_TIMEOUT_MS);
+        .map(
+            bootstrapServers -> {
+              Map<String, Object> config = new HashMap<>();
+              config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+              config.put(
+                  AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG,
+                  ApplicationConstants.KAFKA_REQUEST_TIMEOUT_MS);
 
-          // Confluent SASL/PLAIN authentication
-          config.put("security.protocol", "SASL_SSL");
-          config.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
+              // Confluent SASL/PLAIN authentication
+              config.put("security.protocol", "SASL_SSL");
+              config.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
-          // JAAS configuration
-          String saslJaasConfig = String.format(
-              "%s required username=\"%s\" password=\"%s\";",
-              PlainLoginModule.class.getName(), apiKey, apiSecret);
-          config.put(SaslConfigs.SASL_JAAS_CONFIG, saslJaasConfig);
+              // JAAS configuration
+              String saslJaasConfig =
+                  String.format(
+                      "%s required username=\"%s\" password=\"%s\";",
+                      PlainLoginModule.class.getName(), apiKey, apiSecret);
+              config.put(SaslConfigs.SASL_JAAS_CONFIG, saslJaasConfig);
 
-          // SSL configuration for Confluent
-          config.put("ssl.endpoint.identification.algorithm", "https");
+              // SSL configuration for Confluent
+              config.put("ssl.endpoint.identification.algorithm", "https");
 
-          return config;
-        });
+              return config;
+            });
   }
 }

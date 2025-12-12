@@ -20,10 +20,9 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 
 /**
- * Service for reading and parsing Spark Structured Streaming checkpoint offsets
- * from S3. Spark
- * stores checkpoint offsets in JSON format at: checkpoint/application/offsets/
- * Files are named with numeric batch IDs: 0, 1, 2, etc.
+ * Service for reading and parsing Spark Structured Streaming checkpoint offsets from S3. Spark
+ * stores checkpoint offsets in JSON format at: checkpoint/application/offsets/ Files are named with
+ * numeric batch IDs: 0, 1, 2, etc.
  */
 @Slf4j
 public class SparkCheckpointService {
@@ -31,12 +30,10 @@ public class SparkCheckpointService {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Inject
-  public SparkCheckpointService() {
-  }
+  public SparkCheckpointService() {}
 
   /**
-   * Get Spark checkpoint offsets for a tenant. Parses the latest offset file from
-   * Spark checkpoint
+   * Get Spark checkpoint offsets for a tenant. Parses the latest offset file from Spark checkpoint
    * directory.
    *
    * @param tenant Tenant
@@ -107,39 +104,44 @@ public class SparkCheckpointService {
 
               // Get the latest offset file by parsing numeric filenames
               // Files are named: 0, 1, 2, etc. (highest number is latest)
-              String latestOffsetFile = offsetFiles.stream()
-                  .filter(
-                      file -> {
-                        // Extract filename from path (handle both full paths and just filenames)
-                        String filename = file.contains("/")
-                            ? file.substring(file.lastIndexOf("/") + 1)
-                            : file;
-                        // Check if filename is a numeric string
-                        try {
-                          Integer.parseInt(filename);
-                          return true;
-                        } catch (NumberFormatException e) {
-                          return false;
-                        }
-                      })
-                  .max(
-                      (file1, file2) -> {
-                        // Compare numeric values of filenames
-                        String filename1 = file1.contains("/")
-                            ? file1.substring(file1.lastIndexOf("/") + 1)
-                            : file1;
-                        String filename2 = file2.contains("/")
-                            ? file2.substring(file2.lastIndexOf("/") + 1)
-                            : file2;
-                        try {
-                          int num1 = Integer.parseInt(filename1);
-                          int num2 = Integer.parseInt(filename2);
-                          return Integer.compare(num1, num2);
-                        } catch (NumberFormatException e) {
-                          return 0;
-                        }
-                      })
-                  .orElse(null);
+              String latestOffsetFile =
+                  offsetFiles.stream()
+                      .filter(
+                          file -> {
+                            // Extract filename from path (handle both full paths and just
+                            // filenames)
+                            String filename =
+                                file.contains("/")
+                                    ? file.substring(file.lastIndexOf("/") + 1)
+                                    : file;
+                            // Check if filename is a numeric string
+                            try {
+                              Integer.parseInt(filename);
+                              return true;
+                            } catch (NumberFormatException e) {
+                              return false;
+                            }
+                          })
+                      .max(
+                          (file1, file2) -> {
+                            // Compare numeric values of filenames
+                            String filename1 =
+                                file1.contains("/")
+                                    ? file1.substring(file1.lastIndexOf("/") + 1)
+                                    : file1;
+                            String filename2 =
+                                file2.contains("/")
+                                    ? file2.substring(file2.lastIndexOf("/") + 1)
+                                    : file2;
+                            try {
+                              int num1 = Integer.parseInt(filename1);
+                              int num2 = Integer.parseInt(filename2);
+                              return Integer.compare(num1, num2);
+                            } catch (NumberFormatException e) {
+                              return 0;
+                            }
+                          })
+                      .orElse(null);
 
               if (latestOffsetFile == null) {
                 log.warn("No numeric offset files found in checkpoint path: {}", offsetsPath);

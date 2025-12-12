@@ -224,9 +224,7 @@ public class SparkCheckpointServiceTest extends BaseTest {
       // Mock readFileContent to return checkpoint content when reading file "10"
       mockedS3Utils
           .when(
-              () ->
-                  S3Utils.readFileContent(
-                      any(), any(), eq("checkpoint/application/offsets/10")))
+              () -> S3Utils.readFileContent(any(), any(), eq("checkpoint/application/offsets/10")))
           .thenReturn(Single.just(checkpointContent));
 
       SparkCheckpointOffsets result =
@@ -278,4 +276,3 @@ public class SparkCheckpointServiceTest extends BaseTest {
     }
   }
 }
-

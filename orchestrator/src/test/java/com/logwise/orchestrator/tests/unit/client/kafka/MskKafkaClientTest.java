@@ -8,15 +8,11 @@ import com.logwise.orchestrator.client.kafka.MskKafkaClient;
 import com.logwise.orchestrator.config.ApplicationConfig;
 import com.logwise.orchestrator.enums.KafkaType;
 import com.logwise.orchestrator.setup.BaseTest;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import software.amazon.awssdk.services.kafka.KafkaClient;
-import software.amazon.awssdk.services.kafka.model.GetBootstrapBrokersRequest;
-import software.amazon.awssdk.services.kafka.model.GetBootstrapBrokersResponse;
 
 /** Unit tests for MskKafkaClient. */
 public class MskKafkaClientTest extends BaseTest {
@@ -57,7 +53,8 @@ public class MskKafkaClientTest extends BaseTest {
     assertEquals(config.get("security.protocol"), "SASL_SSL");
     assertEquals(config.get(SaslConfigs.SASL_MECHANISM), "AWS_MSK_IAM");
     assertTrue(
-        config.get(SaslConfigs.SASL_CLIENT_CALLBACK_HANDLER_CLASS)
+        config
+            .get(SaslConfigs.SASL_CLIENT_CALLBACK_HANDLER_CLASS)
             .toString()
             .contains("IAMClientCallbackHandler"));
     assertEquals(config.get("ssl.endpoint.identification.algorithm"), "https");
@@ -90,4 +87,3 @@ public class MskKafkaClientTest extends BaseTest {
     mskKafkaClient.buildBootstrapServers().blockingGet();
   }
 }
-

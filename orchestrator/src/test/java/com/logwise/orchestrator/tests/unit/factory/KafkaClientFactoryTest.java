@@ -89,4 +89,3 @@ public class KafkaClientFactoryTest extends BaseTest {
     factory.createKafkaClient(config);
   }
 }
-

@@ -21,49 +21,54 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RequiredArgsConstructor(onConstructor = @__({ @Inject }))
+@RequiredArgsConstructor(onConstructor = @__({@Inject}))
 public class MetricsService {
 
   /** Compute application log sync delay in minutes and return as DTO. */
   public Single<LogSyncDelayResponse> computeLogSyncDelay(Tenant tenant) {
     return computeApplicationLogSyncDelayForAws(tenant)
         .map(
-            appDelay -> LogSyncDelayResponse.builder()
-                .tenant(tenant.getValue())
-                .appLogsDelayMinutes(appDelay)
-                .build());
+            appDelay ->
+                LogSyncDelayResponse.builder()
+                    .tenant(tenant.getValue())
+                    .appLogsDelayMinutes(appDelay)
+                    .build());
   }
 
   private Single<Integer> computeApplicationLogSyncDelayForAws(Tenant tenant) {
     TenantConfig config = ApplicationConfigUtil.getTenantConfig(tenant);
     DelayMetricsConfig delayMetricsConfig = config.getDelayMetrics();
     LocalDateTime nowTime = LocalDateTime.now(ZoneOffset.UTC);
-    List<String> prefixList = getPrefixList(
-        nowTime,
-        config.getSpark().getLogsDir(),
-        delayMetricsConfig.getApp().getSampleServiceName());
+    List<String> prefixList =
+        getPrefixList(
+            nowTime,
+            config.getSpark().getLogsDir(),
+            delayMetricsConfig.getApp().getSampleServiceName());
 
     return Observable.fromIterable(prefixList)
         .flatMapSingle(
-            prefix -> ObjectStoreFactory.getClient(tenant)
-                .listObjects(prefix)
-                .map(
-                    objNames -> {
-                      if (!objNames.isEmpty()) {
-                        objNames.sort(Collections.reverseOrder());
-                        Matcher matcher = Pattern.compile("hour=(\\d{2})/minute=(\\d{2})")
-                            .matcher(objNames.get(0));
-                        if (matcher.find()) {
-                          int objHour = Integer.parseInt(matcher.group(1));
-                          int objMinute = Integer.parseInt(matcher.group(2));
-                          int nowHour = nowTime.getHour();
-                          int nowMinute = nowTime.getMinute();
-                          int timeDiff = (nowHour * 60 + nowMinute) - (objHour * 60 + objMinute);
-                          return Math.max(1, timeDiff);
-                        }
-                      }
-                      return null;
-                    }))
+            prefix ->
+                ObjectStoreFactory.getClient(tenant)
+                    .listObjects(prefix)
+                    .map(
+                        objNames -> {
+                          if (!objNames.isEmpty()) {
+                            objNames.sort(Collections.reverseOrder());
+                            Matcher matcher =
+                                Pattern.compile("hour=(\\d{2})/minute=(\\d{2})")
+                                    .matcher(objNames.get(0));
+                            if (matcher.find()) {
+                              int objHour = Integer.parseInt(matcher.group(1));
+                              int objMinute = Integer.parseInt(matcher.group(2));
+                              int nowHour = nowTime.getHour();
+                              int nowMinute = nowTime.getMinute();
+                              int timeDiff =
+                                  (nowHour * 60 + nowMinute) - (objHour * 60 + objMinute);
+                              return Math.max(1, timeDiff);
+                            }
+                          }
+                          return null;
+                        }))
         .filter(computed -> computed != null)
         .firstElement()
         .defaultIfEmpty(ApplicationConstants.MAX_LOGS_SYNC_DELAY_HOURS * 60)
@@ -72,14 +77,17 @@ public class MetricsService {
 
   private static List<String> getPrefixList(LocalDateTime nowTime, String dir, String serviceName) {
     List<String> dirPrefixList = new ArrayList<>();
-    for (int deltaHours = 0; deltaHours <= ApplicationConstants.MAX_LOGS_SYNC_DELAY_HOURS; deltaHours++) {
+    for (int deltaHours = 0;
+        deltaHours <= ApplicationConstants.MAX_LOGS_SYNC_DELAY_HOURS;
+        deltaHours++) {
       LocalDateTime time = nowTime.minusHours(deltaHours);
       String month = String.format("%02d", time.getMonthValue());
       String day = String.format("%02d", time.getDayOfMonth());
       String hour = String.format("%02d", time.getHour());
-      String dirPrefix = String.format(
-          "%s/service_name=%s/year=%d/month=%s/day=%s/hour=%s/minute=",
-          dir, serviceName, time.getYear(), month, day, hour);
+      String dirPrefix =
+          String.format(
+              "%s/service_name=%s/year=%d/month=%s/day=%s/hour=%s/minute=",
+              dir, serviceName, time.getYear(), month, day, hour);
       if (!dirPrefixList.contains(dirPrefix)) {
         dirPrefixList.add(dirPrefix);
       }

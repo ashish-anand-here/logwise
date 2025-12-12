@@ -39,16 +39,36 @@ public class ScaleKafkaPartitions {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  @Operation(summary = "Scale Kafka partitions", description = "Scales Kafka topic partitions based on metrics, lag, and size thresholds")
-  @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "Successfully scaled Kafka partitions", content = @Content(schema = @Schema(implementation = ScaleKafkaPartitionsResponse.class))),
-      @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = DefaultErrorResponse.class))),
-      @ApiResponse(responseCode = "500", description = "Error occurred while processing the request", content = @Content(schema = @Schema(implementation = DefaultErrorResponse.class)))
-  })
+  @Operation(
+      summary = "Scale Kafka partitions",
+      description = "Scales Kafka topic partitions based on metrics, lag, and size thresholds")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Successfully scaled Kafka partitions",
+            content =
+                @Content(schema = @Schema(implementation = ScaleKafkaPartitionsResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid request",
+            content = @Content(schema = @Schema(implementation = DefaultErrorResponse.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Error occurred while processing the request",
+            content = @Content(schema = @Schema(implementation = DefaultErrorResponse.class)))
+      })
   public CompletionStage<Response<ScaleKafkaPartitionsResponse>> scalePartitions(
-      @Parameter(description = "Tenant name identifier", required = true) @NotNull(message = ApplicationConstants.HEADER_TENANT_NAME
-          + " header is missing") @HeaderParam(ApplicationConstants.HEADER_TENANT_NAME) String tenantName,
-      @RequestBody(description = "Kafka partition scaling configuration (optional)", content = @Content(schema = @Schema(implementation = ScaleKafkaPartitionsRequest.class))) @Valid ScaleKafkaPartitionsRequest request) {
+      @Parameter(description = "Tenant name identifier", required = true)
+          @NotNull(message = ApplicationConstants.HEADER_TENANT_NAME + " header is missing")
+          @HeaderParam(ApplicationConstants.HEADER_TENANT_NAME)
+          String tenantName,
+      @RequestBody(
+              description = "Kafka partition scaling configuration (optional)",
+              content =
+                  @Content(schema = @Schema(implementation = ScaleKafkaPartitionsRequest.class)))
+          @Valid
+          ScaleKafkaPartitionsRequest request) {
     log.info("Received request to scale Kafka partitions for tenant: {}", tenantName);
 
     if (request == null) {
@@ -66,41 +86,45 @@ public class ScaleKafkaPartitions {
           .scaleKafkaPartitions(tenant)
           .subscribe(
               scalingDecisions -> {
-                ScaleKafkaPartitionsResponse response = ScaleKafkaPartitionsResponse.builder()
-                    .success(true)
-                    .message("Successfully scaled Kafka partitions for tenant: " + tenantName)
-                    .topicsScaled(scalingDecisions.size())
-                    .scalingDecisions(scalingDecisions != null ? scalingDecisions : Collections.emptyList())
-                    .warnings(warnings)
-                    .errors(errors)
-                    .build();
+                ScaleKafkaPartitionsResponse response =
+                    ScaleKafkaPartitionsResponse.builder()
+                        .success(true)
+                        .message("Successfully scaled Kafka partitions for tenant: " + tenantName)
+                        .topicsScaled(scalingDecisions.size())
+                        .scalingDecisions(
+                            scalingDecisions != null ? scalingDecisions : Collections.emptyList())
+                        .warnings(warnings)
+                        .errors(errors)
+                        .build();
                 future.complete(Response.successfulResponse(response, HttpStatus.SC_OK));
               },
               throwable -> {
                 log.error("Error scaling Kafka partitions for tenant: {}", tenantName, throwable);
                 errors.add(throwable.getMessage());
-                ScaleKafkaPartitionsResponse response = ScaleKafkaPartitionsResponse.builder()
-                    .success(false)
-                    .message("Failed to scale Kafka partitions: " + throwable.getMessage())
-                    .topicsScaled(0)
-                    .scalingDecisions(Collections.emptyList())
-                    .warnings(warnings)
-                    .errors(errors)
-                    .build();
+                ScaleKafkaPartitionsResponse response =
+                    ScaleKafkaPartitionsResponse.builder()
+                        .success(false)
+                        .message("Failed to scale Kafka partitions: " + throwable.getMessage())
+                        .topicsScaled(0)
+                        .scalingDecisions(Collections.emptyList())
+                        .warnings(warnings)
+                        .errors(errors)
+                        .build();
                 future.complete(
                     Response.successfulResponse(response, HttpStatus.SC_INTERNAL_SERVER_ERROR));
               });
     } catch (Exception e) {
       log.error("Error processing scale request for tenant: {}", tenantName, e);
       errors.add(e.getMessage());
-      ScaleKafkaPartitionsResponse response = ScaleKafkaPartitionsResponse.builder()
-          .success(false)
-          .message("Error processing request: " + e.getMessage())
-          .topicsScaled(0)
-          .scalingDecisions(Collections.emptyList())
-          .warnings(warnings)
-          .errors(errors)
-          .build();
+      ScaleKafkaPartitionsResponse response =
+          ScaleKafkaPartitionsResponse.builder()
+              .success(false)
+              .message("Error processing request: " + e.getMessage())
+              .topicsScaled(0)
+              .scalingDecisions(Collections.emptyList())
+              .warnings(warnings)
+              .errors(errors)
+              .build();
       future.complete(Response.successfulResponse(response, HttpStatus.SC_BAD_REQUEST));
     }
 
