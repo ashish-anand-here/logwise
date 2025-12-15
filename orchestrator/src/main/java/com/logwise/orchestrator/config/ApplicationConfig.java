@@ -71,7 +71,7 @@ public class ApplicationConfig {
   }
 
   @Data
-  public static class Orchestrator{
+  public static class Orchestrator {
     @NonFinal @Optional String url;
   }
 
