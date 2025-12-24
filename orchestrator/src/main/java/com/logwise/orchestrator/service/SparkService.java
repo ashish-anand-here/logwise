@@ -47,19 +47,17 @@ public class SparkService {
     SparkConfig sparkConf = tenantConfig.getSpark();
     KafkaConfig kafkaConf = tenantConfig.getKafka();
     String bucketName = tenantConfig.getObjectStore().getAws().getBucket();
-    List<String> appArgs =
-        List.of(
-            format("kafka.cluster.dns=%s", kafkaConf.getKafkaBrokersHost()),
-            format("kafka.maxRatePerPartition=%s", sparkConf.getKafkaMaxRatePerPartition()),
-            format("kafka.startingOffsets=%s", sparkConf.getKafkaStartingOffsets()),
-            format("kafka.subscribePattern=\"%s\"", sparkConf.getSubscribePattern()),
-            format("spark.master.host=\"http://%s:8080\"", sparkConf.getSparkMasterHost()),
-            format("s3.bucket=%s", bucketName));
+    List<String> appArgs = List.of(
+        format("kafka.cluster.dns=%s", kafkaConf.getKafkaBrokersHost()),
+        format("kafka.maxRatePerPartition=%s", sparkConf.getKafkaMaxRatePerPartition()),
+        format("kafka.startingOffsets=%s", sparkConf.getKafkaStartingOffsets()),
+        format("kafka.subscribePattern=\"%s\"", sparkConf.getSubscribePattern()),
+        format("spark.master.host=\"http://%s:8080\"", sparkConf.getSparkMasterHost()),
+        format("s3.bucket=%s", bucketName));
 
-    String extraJavaOptions =
-        format(
-            "%s -Dlog4j.configuration=%s",
-            ApplicationConstants.SPARK_GC_JAVA_OPTIONS, sparkConf.getLog4jPropertiesFilePath());
+    String extraJavaOptions = format(
+        "%s -Dlog4j.configuration=%s",
+        ApplicationConstants.SPARK_GC_JAVA_OPTIONS, sparkConf.getLog4jPropertiesFilePath());
 
     Map<String, String> environmentVariables = new HashMap<>();
     environmentVariables.put("SPARK_ENV_LOADED", "1");
@@ -151,6 +149,12 @@ public class SparkService {
 
       sparkProperties.put("spark.hadoop.fs.s3a.access.key", awsAccessKeyId);
       sparkProperties.put("spark.hadoop.fs.s3a.secret.key", awsSecretAccessKey);
+    } else {
+      // No explicit credentials provided - use default credential chain (includes IAM
+      // roles)
+      sparkProperties.put(
+          "spark.hadoop.fs.s3a.aws.credentials.provider",
+          "org.apache.hadoop.fs.s3a.auth.DefaultAWSCredentialsProviderChain");
     }
     return SubmitSparkJobRequest.builder()
         .appArgs(appArgs)
@@ -169,7 +173,8 @@ public class SparkService {
   }
 
   /**
-   * Monitor the spark job for 1 minute. If the job is not running, submit the job.
+   * Monitor the spark job for 1 minute. If the job is not running, submit the
+   * job.
    *
    * @param tenant Tenant
    * @return completable
@@ -177,11 +182,10 @@ public class SparkService {
   public Completable monitorSparkJob(Tenant tenant, Integer driverCores, Integer driverMemoryInGb) {
     TenantConfig tenantConfig = ApplicationConfigUtil.getTenantConfig(tenant);
     AtomicBoolean jobSubmitted = new AtomicBoolean(false);
-    int take =
-        ApplicationConstants.SPARK_MONITOR_TIME_IN_SECS
-            / ApplicationConstants.SPARK_MONITOR_POLL_INTERVAL_SECS;
+    int take = ApplicationConstants.SPARK_MONITOR_TIME_IN_SECS
+        / ApplicationConstants.SPARK_MONITOR_POLL_INTERVAL_SECS;
     return Flowable.interval(
-            0, ApplicationConstants.SPARK_MONITOR_POLL_INTERVAL_SECS, TimeUnit.SECONDS)
+        0, ApplicationConstants.SPARK_MONITOR_POLL_INTERVAL_SECS, TimeUnit.SECONDS)
         .take(take)
         .takeUntil(
             __ -> {
@@ -190,10 +194,9 @@ public class SparkService {
         .flatMapSingle(
             __ -> getSparkMasterJsonResponse(tenantConfig.getSpark().getSparkMasterHost()))
         .flatMapCompletable(
-            response ->
-                validateAndSubmitSparkJob(tenant, response, driverCores, driverMemoryInGb)
-                    .flatMapCompletable(
-                        submitted -> Completable.fromAction(() -> jobSubmitted.set(submitted))));
+            response -> validateAndSubmitSparkJob(tenant, response, driverCores, driverMemoryInGb)
+                .flatMapCompletable(
+                    submitted -> Completable.fromAction(() -> jobSubmitted.set(submitted))));
   }
 
   public Single<Boolean> validateAndSubmitSparkJob(
@@ -217,8 +220,7 @@ public class SparkService {
         .getAbs(format("http://%s:8080/json", sparkMasterHost))
         .rxSend()
         .map(
-            response ->
-                objectMapper.readValue(response.bodyAsString(), SparkMasterJsonResponse.class))
+            response -> objectMapper.readValue(response.bodyAsString(), SparkMasterJsonResponse.class))
         .retryWhen(
             WebClientUtils.retryWithDelay(
                 ApplicationConstants.DEFAULT_RETRY_DELAY_SECONDS,
@@ -238,42 +240,39 @@ public class SparkService {
     TenantConfig tenantConfig = ApplicationConfigUtil.getTenantConfig(tenant);
     ObjectStoreClient objectStoreClient = ObjectStoreFactory.getClient(tenant);
 
-    Single<List<String>> checkPointFilesSingle =
-        objectStoreClient.listObjects(tenantConfig.getSpark().getCheckPointDir() + "/");
+    Single<List<String>> checkPointFilesSingle = objectStoreClient
+        .listObjects(tenantConfig.getSpark().getCheckPointDir() + "/");
 
-    Single<List<String>> appSparkMetaDataFilesSingle =
-        objectStoreClient.listObjects(
-            format(
-                "%s/%s/",
-                tenantConfig.getSpark().getLogsDir(),
-                ApplicationConstants.SPARK_METADATA_FILE_NAME));
+    Single<List<String>> appSparkMetaDataFilesSingle = objectStoreClient.listObjects(
+        format(
+            "%s/%s/",
+            tenantConfig.getSpark().getLogsDir(),
+            ApplicationConstants.SPARK_METADATA_FILE_NAME));
 
     return Single.zip(
-            checkPointFilesSingle,
-            appSparkMetaDataFilesSingle,
-            (checkPointFiles, sparkMetaDataFiles) -> {
-              List<String> files = new ArrayList<>();
-              files.addAll(checkPointFiles);
-              files.addAll(sparkMetaDataFiles);
-              log.info("Files to delete: {}", files);
-              return files;
-            })
+        checkPointFilesSingle,
+        appSparkMetaDataFilesSingle,
+        (checkPointFiles, sparkMetaDataFiles) -> {
+          List<String> files = new ArrayList<>();
+          files.addAll(checkPointFiles);
+          files.addAll(sparkMetaDataFiles);
+          log.info("Files to delete: {}", files);
+          return files;
+        })
         .flatMapCompletable(
-            objects ->
-                Flowable.fromIterable(objects)
-                    .flatMapCompletable(objectStoreClient::deleteFile)
-                    .onErrorResumeNext(
-                        e -> {
-                          log.error("Error occurred while deleting checkpoint files", e);
-                          return Completable.error(e);
-                        }))
+            objects -> Flowable.fromIterable(objects)
+                .flatMapCompletable(objectStoreClient::deleteFile)
+                .onErrorResumeNext(
+                    e -> {
+                      log.error("Error occurred while deleting checkpoint files", e);
+                      return Completable.error(e);
+                    }))
         .doOnError(e -> log.error("Error occurred while deleting S3Objects", e));
   }
 
   public Completable submitSparkJob(
       TenantConfig tenantConfig, Integer driverCores, Integer driverMemoryInGb) {
-    SubmitSparkJobRequest request =
-        getSparkSubmitRequestBody(tenantConfig, driverCores, driverMemoryInGb);
+    SubmitSparkJobRequest request = getSparkSubmitRequestBody(tenantConfig, driverCores, driverMemoryInGb);
     log.info("Submitting Spark Job: {}", request);
     return this.webClient
         .getWebClient()
